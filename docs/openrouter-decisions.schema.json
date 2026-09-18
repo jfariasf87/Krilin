@@ -1,0 +1,314 @@
+{
+  "source": "https://openrouter.ai/openapi.json",
+  "checked": "2026-09-18",
+  "path": "/api/alpha/decisions",
+  "schemas": {
+    "DecisionsChoiceAnswer": {
+      "properties": {
+        "choice": {
+          "type": "string"
+        },
+        "confidence": {
+          "format": "double",
+          "type": "number"
+        },
+        "probabilities": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "type": {
+          "enum": [
+            "choice"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "choice"
+      ],
+      "type": "object"
+    },
+    "DecisionsChoiceQuestion": {
+      "properties": {
+        "criteria": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "instructions": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "choice"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "instructions",
+        "criteria"
+      ],
+      "type": "object"
+    },
+    "DecisionsNoulAnswer": {
+      "properties": {
+        "noul": {
+          "format": "double",
+          "type": "number"
+        },
+        "type": {
+          "enum": [
+            "noul"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "noul"
+      ],
+      "type": "object"
+    },
+    "DecisionsNoulQuestion": {
+      "properties": {
+        "criteria": {
+          "properties": {
+            "false": {
+              "type": "string"
+            },
+            "true": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "true",
+            "false"
+          ],
+          "type": "object"
+        },
+        "instructions": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "noul"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "instructions"
+      ],
+      "type": "object"
+    },
+    "DecisionsRequest": {
+      "properties": {
+        "model": {
+          "type": "string"
+        },
+        "provider": {
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/ProviderPreferences"
+            },
+            {
+              "description": "Provider routing preferences for the request."
+            }
+          ]
+        },
+        "questions": {
+          "additionalProperties": {
+            "description": "A Decisions question using a boolean, choice, or ordered score evaluation.",
+            "discriminator": {
+              "mapping": {
+                "choice": "#/components/schemas/DecisionsChoiceQuestion",
+                "noul": "#/components/schemas/DecisionsNoulQuestion",
+                "score": "#/components/schemas/DecisionsScoreQuestion"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DecisionsNoulQuestion"
+              },
+              {
+                "$ref": "#/components/schemas/DecisionsChoiceQuestion"
+              },
+              {
+                "$ref": "#/components/schemas/DecisionsScoreQuestion"
+              }
+            ]
+          },
+          "type": "object"
+        },
+        "session_id": {
+          "description": "A unique identifier for grouping related requests (e.g., a conversation or agent workflow). Used for observability grouping in Broadcast and private logging; never sent to the provider. If provided in both the request body and the x-session-id header, the body value takes precedence. Maximum of 256 characters.",
+          "example": "session-1234",
+          "maxLength": 256,
+          "type": "string"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {},
+              "type": "object"
+            },
+            {
+              "items": {},
+              "type": "array"
+            }
+          ],
+          "description": "The content to evaluate: a plain string, or a JSON object or array of related context."
+        },
+        "trace": {
+          "$ref": "#/components/schemas/TraceConfig"
+        },
+        "user": {
+          "maxLength": 256,
+          "type": "string"
+        }
+      },
+      "required": [
+        "model",
+        "state",
+        "questions"
+      ],
+      "type": "object"
+    },
+    "DecisionsResponse": {
+      "properties": {
+        "answers": {
+          "additionalProperties": {
+            "description": "A Decisions answer using a boolean, choice, or score evaluation.",
+            "discriminator": {
+              "mapping": {
+                "choice": "#/components/schemas/DecisionsChoiceAnswer",
+                "noul": "#/components/schemas/DecisionsNoulAnswer",
+                "score": "#/components/schemas/DecisionsScoreAnswer"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DecisionsNoulAnswer"
+              },
+              {
+                "$ref": "#/components/schemas/DecisionsChoiceAnswer"
+              },
+              {
+                "$ref": "#/components/schemas/DecisionsScoreAnswer"
+              }
+            ]
+          },
+          "type": "object"
+        },
+        "id": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "usage": {
+          "properties": {
+            "cost": {
+              "format": "double",
+              "type": "number"
+            },
+            "input_tokens": {
+              "type": "integer"
+            },
+            "output_tokens": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "input_tokens",
+            "output_tokens"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "model",
+        "answers",
+        "usage"
+      ],
+      "type": "object"
+    },
+    "DecisionsScoreAnswer": {
+      "properties": {
+        "confidence": {
+          "format": "double",
+          "type": "number"
+        },
+        "legend": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "probabilities": {
+          "additionalProperties": {
+            "format": "double",
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "score": {
+          "format": "double",
+          "type": "number"
+        },
+        "type": {
+          "enum": [
+            "score"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "score"
+      ],
+      "type": "object"
+    },
+    "DecisionsScoreQuestion": {
+      "properties": {
+        "criteria": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "instructions": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "score"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "instructions",
+        "criteria"
+      ],
+      "type": "object"
+    }
+  }
+}

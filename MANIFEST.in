@@ -1,0 +1,13 @@
+include README.md LICENSE CONTRIBUTING.md .env.example
+recursive-include docs *.md *.json
+recursive-include examples *.json
+recursive-include scripts *.py
+recursive-include tests *.py
+recursive-include android *.kt *.kts *.xml *.properties *.md *.jar gradlew gradlew.bat
+prune android/app/build
+prune android/build
+prune android/.gradle
+prune .local
+prune .venv
+global-exclude local.properties
+exclude .env

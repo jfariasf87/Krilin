@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "krilin"
+version = "0.1.0"
+description = "Bounded, state-aware Android UI control for coding agents"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+dependencies = ["python-dotenv>=1.0,<2"]
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.30,<2"]
+
+[project.scripts]
+krilin = "krilin.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

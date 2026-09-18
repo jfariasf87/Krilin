@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Krilin Bridge</string>
+    <string name="setup_instructions">Krilin Bridge\nEnable this service in Accessibility settings. Keep TalkBack enabled when testing with TalkBack.</string>
+    <string name="accessibility_settings">Accessibility settings</string>
+    <string name="open_test_screen">Open test screen</string>
+    <string name="name_hint" translatable="false">Name</string>
+    <string name="not_saved" translatable="false">Not saved</string>
+    <string name="save" translatable="false">Save</string>
+    <string name="saved_value" translatable="false">Saved: %1$s</string>
+    <string name="service_description">Krilin exposes structured UI observations and semantic actions to your local development tools.</string>
+    <item name="demo_name" type="id" />
+    <item name="demo_save" type="id" />
+    <item name="demo_status" type="id" />
+</resources>

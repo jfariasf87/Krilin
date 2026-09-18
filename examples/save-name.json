@@ -1,0 +1,14 @@
+{
+  "goal": "Enter Krilin in the Name field, then press Save.",
+  "allowed_packages": ["dev.krilin.bridge"],
+  "assertions": [
+    {
+      "package": "dev.krilin.bridge",
+      "resource_id": "dev.krilin.bridge:id/demo_status",
+      "text": "Saved: Krilin"
+    }
+  ],
+  "text_values": {
+    "dev.krilin.bridge:id/demo_name": "Krilin"
+  }
+}
