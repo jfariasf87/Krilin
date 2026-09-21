@@ -2,9 +2,9 @@
 
 Krilin gives coding agents a bounded way to interact with Android emulators. An Android companion reads the accessibility tree, Jev chooses from actions grounded in that tree, and ordinary code executes and verifies the result.
 
-This is a public-project foundation, version 0.1. It includes a working Python host, Kotlin Android companion, CLI, optional MCP server, and an isolated demo app. It is intended to grow across apps and agent clients. It is not yet a general Android test suite or a TalkBack gesture/speech validator.
+This is a public project at version 0.2. It includes a working Python host, Kotlin Android companion, CLI, optional MCP server, an isolated demo screen, and a deterministic fixture app that exercises the UI patterns that make app testing hard. It is intended to grow across apps and agent clients. It is not yet a general Android test suite or a TalkBack gesture/speech validator.
 
-The demo has been exercised on an emulator with TalkBack on/off and with live Jev decisions. See [validation results and limits](docs/validation.md).
+The demo and the fixture scenarios have been exercised on an emulator with live Jev decisions. See [validation results and limits](docs/validation.md).
 
 ```mermaid
 flowchart LR
@@ -79,7 +79,7 @@ adb -s emulator-5554 shell am start -W -f 0x10008000 -n dev.krilin.bridge/.DemoA
 python -m krilin run --task examples/save-name.json --trace .local/run.jsonl
 ```
 
-Each task supplies a short goal, allowed app packages, exact success assertions, and optional text values keyed by resource ID. Use `observe` to find selectors for your own application. Example:
+Each task supplies a short goal, allowed app packages, success assertions, and any text to enter. Use `observe --brief` to see the elements of your own application as one line each; that is what you write selectors from. Example:
 
 ```json
 {
@@ -94,9 +94,47 @@ Each task supplies a short goal, allowed app packages, exact success assertions,
 }
 ```
 
-Assertions require exactly one visible matching element. They can check `resource_id`, exact `text`, and `checked`, always within a package. Use both resource ID and text when possible. The `noul` goal assessment is diagnostic: only explicit assertions can produce success. Text is supplied by the caller; Jev never generates it. Password fields are excluded from actions and their values are redacted.
+### Selectors
 
-The default run budget is 20 steps and 60 seconds. `--max-steps` and `--max-seconds` can lower or raise those within hard limits. Low confidence, invalid model output, stale-state loops, navigation cycles, provider failure, and budget exhaustion return an `escalated` result with context. CLI exit codes are `0` for success, `2` for escalation, and `1` for configuration/input errors.
+Assertions and input targets are selectors. A selector combines any of `resource_id`, `text` (exact), `text_contains`, `description` (exact), `description_contains`, `role` (`Button`, `EditText`, ...) and `checked`; the `*_contains` fields ignore case and whitespace. Flutter, Compose and web apps expose few or no resource IDs, so their widgets are selected by description or text:
+
+```json
+{
+  "goal": "Type the greeting into the Message field and press Send",
+  "allowed_packages": ["com.example.chat"],
+  "inputs": [{"target": {"role": "EditText", "description": "Message"}, "text": "Hello Natalia"}],
+  "assertions": [
+    {"package": "com.example.chat", "description_contains": "hello natalia"},
+    {"package": "com.example.chat", "description": "Sending", "absent": true}
+  ]
+}
+```
+
+A positive assertion needs exactly one visible matching element; `"absent": true` needs none, which is how a test says "dialog dismissed", "row deleted" or "spinner gone". `text_values` remains the shorthand for fields that have resource IDs. Text is always supplied by the caller; Jev never generates it. The `noul` goal assessment is diagnostic: only explicit assertions can produce success. Password fields are excluded from actions and their values are redacted.
+
+### Scenarios
+
+A scenario is an ordered list of steps with an optional launch precondition that code executes before the first step. Steps run in order and stop at the first escalation; long goals that bundle several actions lower Jev's confidence, so prefer several short steps, each with its own assertions. See `examples/fixture/*.json`:
+
+```json
+{
+  "name": "delete-with-confirm",
+  "allowed_packages": ["dev.krilin.bridge"],
+  "launch": {"package": "dev.krilin.bridge", "activity": ".FixtureActivity", "clear_task": true},
+  "steps": [
+    {"goal": "Dismiss the What's new dialog by pressing Got it, so the notes list becomes usable.",
+     "assertions": [{"package": "dev.krilin.bridge", "text_contains": "got it", "absent": true}]},
+    {"goal": "Open Note 04 from the list so its detail screen appears with the Delete note button.",
+     "assertions": [{"package": "dev.krilin.bridge", "text": "Note 04", "role": "TextView"}]}
+  ]
+}
+```
+
+```sh
+python -m krilin run --scenario examples/fixture/delete-with-confirm.json --trace .local/run.jsonl --record
+```
+
+The default budget is 20 steps and 60 seconds per task or step, and 300 seconds per scenario. `--max-steps` and `--max-seconds` can lower or raise those within hard limits. Low confidence, invalid model output, navigation cycles, provider failure, and budget exhaustion return an `escalated` result with the live state, recent history, and diagnostics: unmet assertions with the nearest elements, ambiguous inputs, and the candidate count. Waiting for a pending transition, a stale snapshot, or the late effect of an accepted action is handled by the controller and does not count as a loop. `--record` writes every observation into the trace so the run can be replayed offline (`krilin.replay`). CLI exit codes are `0` for success, `2` for escalation, and `1` for configuration/input errors.
 
 ## Connect a coding agent with MCP
 
@@ -111,9 +149,10 @@ Register that command and its arguments in your agent's MCP settings. Set absolu
 The server exposes:
 
 - `android_observe()` — current UI elements, package, services, touch exploration, and IME visibility; no model call.
-- `android_run(goal, allowed_packages, assertions, text_values, ...)` — one bounded subgoal with a verified result or escalation.
+- `android_run(goal, allowed_packages, assertions, text_values, inputs, ...)` — one bounded subgoal with a verified result or escalation.
+- `android_run_scenario(scenario)` — a launch precondition plus ordered steps, with per-step results.
 
-An agent should break a longer test into explicit subgoals and assertions. MCP owns transport only; CLI and MCP call the same controller. The adapter uses the maintained MCP Python SDK 1.x line, constrained to `<2`; migrating to SDK 2 is isolated to this adapter.
+An agent should break a longer test into explicit steps and assertions. MCP owns transport only; CLI and MCP call the same controller. The adapter uses the maintained MCP Python SDK 1.x line, constrained to `<2`; migrating to SDK 2 is isolated to this adapter.
 
 ## TalkBack and input state
 
@@ -123,7 +162,9 @@ Each observation includes enabled accessibility services, touch exploration, IME
 
 ## Scope and development
 
-The initial actions are click, replace text, scroll forward/backward, optional global Back, wait, and escalation. Screenshots, OCR, coordinate gestures, automatic text generation, app launch planning, persistent resumable workflows, and a benchmark corpus are not implemented. Apps with incomplete accessibility trees may need a future driver adapter.
+The actions are click, replace text, scroll forward/backward, optional global Back, wait, and escalation. Screenshots, OCR, coordinate gestures, automatic text generation, app launch planning by the model, and persistent resumable workflows are not implemented. Apps with incomplete accessibility trees may need a future driver adapter.
+
+The companion's fixture screen (`.FixtureActivity`) is an offline, deterministic notes app with the patterns that make testing hard: a modal that must be dismissed first, delayed content, a form with validation, a filter toggle, a long list with off-screen rows, and an ID-less detail screen. `examples/fixture/` holds one scenario per pattern and `python scripts/evaluate.py --live --runs 3` measures them with Jev on a configured emulator, writing `.local/eval.json`; `--record` keeps replayable traces.
 
 UI text from allowed packages is sent to the selected model provider. Local observations and optional JSONL traces may contain app data; use test accounts and review traces before sharing. The companion is a development tool for trusted emulators/hosts, not a remotely exposed Android service. [Protocol and trust boundaries](docs/protocol.md).
 

@@ -1,0 +1,40 @@
+{
+  "name": "scroll-to-row",
+  "allowed_packages": [
+    "dev.krilin.bridge"
+  ],
+  "launch": {
+    "package": "dev.krilin.bridge",
+    "activity": ".FixtureActivity",
+    "clear_task": true
+  },
+  "steps": [
+    {
+      "goal": "Dismiss the What's new dialog by pressing Got it, so the notes list becomes usable.",
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "text_contains": "got it",
+          "absent": true
+        },
+        {
+          "package": "dev.krilin.bridge",
+          "resource_id": "dev.krilin.bridge:id/fixture_summary",
+          "text": "30 notes, 3 done"
+        }
+      ],
+      "max_steps": 6
+    },
+    {
+      "goal": "Scroll the notes list until the row Note 28 is visible.",
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "text": "Note 28",
+          "role": "TextView"
+        }
+      ],
+      "max_steps": 8
+    }
+  ]
+}

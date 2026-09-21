@@ -19,7 +19,7 @@ class McpTests(unittest.IsolatedAsyncioTestCase):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
                     tools = (await session.list_tools()).tools
-                    self.assertEqual({t.name for t in tools}, {"android_observe", "android_run"})
+                    self.assertEqual({t.name for t in tools}, {"android_observe", "android_run", "android_run_scenario"})
                     run = next(t for t in tools if t.name == "android_run")
                     self.assertIn("assertions", run.inputSchema["required"])
                     result = await session.call_tool("android_observe", {})

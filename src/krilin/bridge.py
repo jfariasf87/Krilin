@@ -44,6 +44,8 @@ class BridgeDriver:
                 raise KrilinError("Bridge response must be an object")
             if reply.get("error") == "stale_snapshot":
                 raise StaleSnapshot("UI or input mode changed before execution")
+            if reply.get("error") == "timeout_outcome_unknown" and payload.get("method") == "observe":
+                raise KrilinError("Observation timed out; the app did not answer accessibility queries in time")
             if "error" in reply:
                 raise KrilinError(f"Bridge rejected request: {reply['error']}")
             return reply

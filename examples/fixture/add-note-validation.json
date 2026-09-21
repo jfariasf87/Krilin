@@ -1,0 +1,75 @@
+{
+  "name": "add-note-validation",
+  "allowed_packages": [
+    "dev.krilin.bridge"
+  ],
+  "launch": {
+    "package": "dev.krilin.bridge",
+    "activity": ".FixtureActivity",
+    "clear_task": true
+  },
+  "steps": [
+    {
+      "goal": "Dismiss the What's new dialog by pressing Got it, so the notes list becomes usable.",
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "text_contains": "got it",
+          "absent": true
+        },
+        {
+          "package": "dev.krilin.bridge",
+          "resource_id": "dev.krilin.bridge:id/fixture_summary",
+          "text": "30 notes, 3 done"
+        }
+      ],
+      "max_steps": 6
+    },
+    {
+      "goal": "Open the Add note dialog by pressing Add note.",
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "resource_id": "dev.krilin.bridge:id/fixture_title",
+          "role": "EditText"
+        }
+      ],
+      "max_steps": 6
+    },
+    {
+      "goal": "Press Add while the Title field is still empty, so the error Title is required appears.",
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "resource_id": "dev.krilin.bridge:id/fixture_title_error",
+          "text": "Title is required"
+        }
+      ],
+      "max_steps": 6
+    },
+    {
+      "goal": "Enter the title into the Title field and press Add, so the note is added and the dialog closes.",
+      "inputs": [
+        {
+          "target": {
+            "resource_id": "dev.krilin.bridge:id/fixture_title"
+          },
+          "text": "Café krilin 日本語"
+        }
+      ],
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "resource_id": "dev.krilin.bridge:id/fixture_summary",
+          "text": "31 notes, 3 done"
+        },
+        {
+          "package": "dev.krilin.bridge",
+          "resource_id": "dev.krilin.bridge:id/fixture_title",
+          "absent": true
+        }
+      ],
+      "max_steps": 8
+    }
+  ]
+}

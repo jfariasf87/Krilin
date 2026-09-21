@@ -20,10 +20,11 @@ Output: `android/app/build/outputs/apk/debug/app-debug.apk`. This is a debug dev
 
 Start an emulator, then use `python -m krilin setup --serial <serial>` from the host environment. Setup requires ADB authorization, installs the companion, provisions its token, and enables it alongside existing accessibility services. The APK also has an Accessibility settings button for manual inspection. Do not replace the entire enabled-service list with only Krilin when configuring manually.
 
-`DemoActivity` is an isolated enter-name/save screen for smoke tests. Clear its task to reset it without stopping the accessibility service:
+`DemoActivity` is an isolated enter-name/save screen for smoke tests. `FixtureActivity` (with `FixtureDetailActivity`) is an offline notes app with the patterns that make testing hard — a modal on launch, delayed content, a validated form, a filter, a long list, and an ID-less detail screen — running in its own `:fixture` process so launches behave like a real app under test. Clear a task to reset a screen without stopping the accessibility service:
 
 ```sh
 adb -s emulator-5554 shell am start -W -f 0x10008000 -n dev.krilin.bridge/.DemoActivity
+adb -s emulator-5554 shell am start -W -f 0x10008000 -n dev.krilin.bridge/.FixtureActivity
 ```
 
 The app requests accessibility tree access and interactive-window/view-ID reporting. It does not request touch exploration or gesture interception. `BridgeService` uses semantic node actions, which are not evidence of physical TalkBack gesture behavior.

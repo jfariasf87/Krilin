@@ -8,7 +8,38 @@
     <string name="save" translatable="false">Save</string>
     <string name="saved_value" translatable="false">Saved: %1$s</string>
     <string name="service_description">Krilin exposes structured UI observations and semantic actions to your local development tools.</string>
+    <string name="open_fixture_screen">Open fixture screen</string>
+    <string name="fixture_hide_done" translatable="false">Hide done</string>
+    <string name="fixture_sync" translatable="false">Sync</string>
+    <string name="fixture_syncing" translatable="false">Syncing</string>
+    <string name="fixture_synced" translatable="false">Synced %1$d notes</string>
+    <string name="fixture_add_note" translatable="false">Add note</string>
+    <string name="fixture_title_hint" translatable="false">Title</string>
+    <string name="fixture_title_required" translatable="false">Title is required</string>
+    <string name="fixture_add" translatable="false">Add</string>
+    <string name="fixture_cancel" translatable="false">Cancel</string>
+    <string name="fixture_whats_new" translatable="false">What\'s new</string>
+    <string name="fixture_whats_new_body" translatable="false">Notes can now be synced. Tap Got it to continue.</string>
+    <string name="fixture_got_it" translatable="false">Got it</string>
+    <string name="fixture_summary" translatable="false">%1$d notes, %2$d done</string>
+    <string name="fixture_note_done" translatable="false">%1$s (done)</string>
+    <string name="fixture_done" translatable="false">Done</string>
+    <string name="fixture_not_done" translatable="false">Not done</string>
+    <string name="fixture_toggle_done" translatable="false">Toggle done</string>
+    <string name="fixture_delete_note" translatable="false">Delete note</string>
+    <string name="fixture_delete_confirm" translatable="false">Delete %1$s?</string>
+    <string name="fixture_delete" translatable="false">Delete</string>
+    <string name="fixture_back_to_notes" translatable="false">Back to notes</string>
     <item name="demo_name" type="id" />
     <item name="demo_save" type="id" />
     <item name="demo_status" type="id" />
+    <item name="fixture_summary" type="id" />
+    <item name="fixture_hide_done" type="id" />
+    <item name="fixture_sync" type="id" />
+    <item name="fixture_add" type="id" />
+    <item name="fixture_progress" type="id" />
+    <item name="fixture_sync_status" type="id" />
+    <item name="fixture_list" type="id" />
+    <item name="fixture_title" type="id" />
+    <item name="fixture_title_error" type="id" />
 </resources>

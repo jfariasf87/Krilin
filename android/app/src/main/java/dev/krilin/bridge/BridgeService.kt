@@ -28,9 +28,12 @@ class BridgeService : AccessibilityService() {
     @Volatile private var server: ServerSocket? = null
     @Volatile private var running = false
     private var current: Capture? = null
-    private var generation = 0L
+    @Volatile private var generation = 0L
     private val events = Object()
     @Volatile private var lastChange = SystemClock.elapsedRealtime()
+    // An accepted action should show some effect before the next observation; see handle().
+    @Volatile private var effectPendingSince = -1L
+    @Volatile private var generationAtAction = 0L
 
     private data class Capture(
         val id: String,
@@ -112,19 +115,33 @@ class BridgeService : AccessibilityService() {
             } else {
                 val requestDeadline = SystemClock.elapsedRealtime() + request.optLong("timeout_ms", 2000).coerceIn(100, 5000) - 50
                 if (request.optString("method") == "observe") {
-                    // Wait for an 80ms quiet window, at most 400ms. Never wait indefinitely
-                    // for an animated screen. Notifications wake this thread immediately.
-                    val settleDeadline = minOf(requestDeadline, SystemClock.elapsedRealtime() + 400)
                     synchronized(events) {
+                        // After an accepted action, wait for the first UI event it causes (at most 500ms)
+                        // so a dialog or list refresh is not observed before it exists. A no-op action
+                        // simply costs the cap.
+                        val effectDeadline = minOf(requestDeadline, effectPendingSince + 500)
+                        while (effectPendingSince >= 0 && generation == generationAtAction) {
+                            val wait = effectDeadline - SystemClock.elapsedRealtime()
+                            if (wait <= 0) break
+                            events.wait(wait)
+                        }
+                        effectPendingSince = -1
+                        // Then wait for a 150ms quiet window (ViewRootImpl batches content changes every
+                        // 100ms), at most 500ms. Never wait indefinitely for an animated screen.
+                        // Notifications wake this thread immediately.
+                        val settleDeadline = minOf(requestDeadline, SystemClock.elapsedRealtime() + 500)
                         while (true) {
                             val now = SystemClock.elapsedRealtime()
-                            val wait = minOf(80 - (now - lastChange), settleDeadline - now)
+                            val wait = minOf(QUIET_MS - (now - lastChange), settleDeadline - now)
                             if (wait <= 0) break
                             events.wait(wait)
                         }
                     }
                 }
-                val expires = minOf(requestDeadline, SystemClock.elapsedRealtime() + 1500)
+                // An action not dispatched within 1.5s has an unknown outcome; an observation has no
+                // side effects, so a slow app may take the whole request budget to answer.
+                val expires = if (request.optString("method") == "observe") requestDeadline
+                    else minOf(requestDeadline, SystemClock.elapsedRealtime() + 1500)
                 val task = FutureTask {
                     if (SystemClock.elapsedRealtime() > expires) error("expired_request")
                     else dispatch(request)
@@ -182,6 +199,10 @@ class BridgeService : AccessibilityService() {
                     Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text) }
                 } else null
                 node.performAction(action, args)
+            }
+            if (ok) {
+                generationAtAction = generation
+                effectPendingSince = SystemClock.elapsedRealtime()
             }
             return if (ok) JSONObject().put("ok", true) else error("action_rejected")
         } finally {
@@ -267,4 +288,8 @@ class BridgeService : AccessibilityService() {
     }
 
     private fun error(code: String) = JSONObject().put("error", code)
+
+    private companion object {
+        const val QUIET_MS = 150L
+    }
 }

@@ -4,7 +4,8 @@ from dataclasses import asdict, dataclass, field
 import hashlib
 import json
 import math
-from typing import Any, Protocol
+import re
+from typing import Any, Iterable, Protocol
 
 
 class KrilinError(Exception):
@@ -23,6 +24,16 @@ def probability(value: Any) -> float:
     return float(value)
 
 
+def normalize(value: str) -> str:
+    """Case-folded text with whitespace runs collapsed, for substring selectors."""
+    return " ".join(value.split()).casefold()
+
+
+def role_name(role: str) -> str:
+    """`android.widget.Button` -> `Button`; Flutter and Compose report the same class names."""
+    return role.rsplit(".", 1)[-1]
+
+
 @dataclass(frozen=True)
 class Element:
     id: str
@@ -36,6 +47,24 @@ class Element:
     focused: bool = False
     password: bool = False
     actions: tuple[str, ...] = ()
+
+
+def brief(element: Element) -> str:
+    """One line a caller can turn into a selector."""
+    parts = [element.id, role_name(element.role) or "View"]
+    if element.resource_id:
+        parts.append(f"id={element.resource_id}")
+    if element.text:
+        parts.append(f"text={element.text[:60]!r}")
+    if element.description:
+        parts.append(f"desc={element.description[:60]!r}")
+    if element.checked:
+        parts.append("checked")
+    if not element.enabled:
+        parts.append("disabled")
+    if element.actions:
+        parts.append("[" + ",".join(element.actions) + "]")
+    return " ".join(parts)
 
 
 @dataclass(frozen=True)
@@ -98,11 +127,87 @@ class Snapshot:
     def state(self) -> dict[str, Any]:
         return asdict(self)
 
+    def compact(self) -> dict[str, Any]:
+        """What Jev reads: the same facts as state(), without token, defaults or empty fields."""
+        elements = []
+        for e in self.elements:
+            item: dict[str, Any] = {"id": e.id}
+            if e.package != self.active_package:
+                item["package"] = e.package
+            for key in ("resource_id", "text", "description"):
+                if getattr(e, key):
+                    item[key] = getattr(e, key)
+            if e.role:
+                item["role"] = role_name(e.role)
+            if not e.enabled:
+                item["enabled"] = False
+            for flag in ("checked", "focused", "password"):
+                if getattr(e, flag):
+                    item[flag] = True
+            if e.actions:
+                item["actions"] = list(e.actions)
+            elements.append(item)
+        return {"active_package": self.active_package, "input": asdict(self.input), "elements": elements}
+
     def fingerprint(self) -> str:
         # Snapshot tokens deliberately change every observation; progress must not.
         state = self.state()
         del state["id"]
         return hashlib.sha256(json.dumps(state, sort_keys=True).encode()).hexdigest()[:20]
+
+
+SELECTOR_FIELDS = ("resource_id", "text", "text_contains", "description", "description_contains", "role", "checked")
+
+
+@dataclass(frozen=True)
+class Selector:
+    """Identifies UI elements without a resource ID: Flutter, Compose and WebView nodes rarely have one."""
+
+    resource_id: str = ""
+    text: str | None = None
+    text_contains: str | None = None
+    description: str | None = None
+    description_contains: str | None = None
+    role: str | None = None
+    checked: bool | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.resource_id, str):
+            raise ValueError("resource_id must be a string")
+        for name in ("text", "text_contains", "description", "description_contains", "role"):
+            value = getattr(self, name)
+            if value is not None and not isinstance(value, str):
+                raise ValueError(f"{name} must be a string")
+        if self.checked is not None and type(self.checked) is not bool:
+            raise ValueError("checked must be a boolean")
+        if any(not normalize(v) for v in (self.text_contains, self.description_contains, self.role) if v is not None):
+            raise ValueError("text_contains, description_contains and role must not be blank")
+        if not (self.resource_id or self.text is not None or self.text_contains or self.description is not None
+                or self.description_contains or self.role):
+            raise ValueError("A selector needs resource_id, text, text_contains, description, description_contains or role")
+
+    @classmethod
+    def from_dict(cls, data: Any) -> Selector:
+        if not isinstance(data, dict) or any(key not in SELECTOR_FIELDS for key in data):
+            raise ValueError(f"Selector fields are {', '.join(SELECTOR_FIELDS)}")
+        return cls(**data)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {k: v for k, v in asdict(self).items() if v is not None and v != ""}
+
+    def matches(self, element: Element) -> bool:
+        return ((not self.resource_id or element.resource_id == self.resource_id)
+                and (self.text is None or element.text == self.text)
+                and (self.text_contains is None or normalize(self.text_contains) in normalize(element.text))
+                and (self.description is None or element.description == self.description)
+                and (self.description_contains is None
+                     or normalize(self.description_contains) in normalize(element.description))
+                and (self.role is None
+                     or normalize(self.role) in (normalize(element.role), normalize(role_name(element.role))))
+                and (self.checked is None or element.checked == self.checked))
+
+    def find(self, elements: Iterable[Element]) -> list[Element]:
+        return [e for e in elements if self.matches(e)]
 
 
 @dataclass(frozen=True)
@@ -111,23 +216,63 @@ class Assertion:
     resource_id: str = ""
     text: str | None = None
     checked: bool | None = None
+    text_contains: str | None = None
+    description: str | None = None
+    description_contains: str | None = None
+    role: str | None = None
+    absent: bool = False
 
     def __post_init__(self) -> None:
-        if not isinstance(self.package, str) or not self.package or not isinstance(self.resource_id, str):
-            raise ValueError("Assertion package and resource_id must be strings")
-        if self.text is not None and not isinstance(self.text, str):
-            raise ValueError("Assertion text must be a string")
-        if not (self.resource_id or self.text is not None):
-            raise ValueError("Assertions need a package and a resource_id or exact text")
-        if self.checked is not None and type(self.checked) is not bool:
-            raise ValueError("checked must be a boolean")
+        if not isinstance(self.package, str) or not self.package:
+            raise ValueError("Assertion package must be a non-empty string")
+        if type(self.absent) is not bool:
+            raise ValueError("absent must be a boolean")
+        self.selector  # Validates the identifying fields.
+
+    @classmethod
+    def from_dict(cls, data: Any) -> Assertion:
+        allowed = {"package", "absent", *SELECTOR_FIELDS}
+        if not isinstance(data, dict) or any(key not in allowed for key in data):
+            raise ValueError(f"Assertion fields are {', '.join(sorted(allowed))}")
+        return cls(**data)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"package": self.package, **self.selector.to_dict(), **({"absent": True} if self.absent else {})}
+
+    @property
+    def selector(self) -> Selector:
+        return Selector(self.resource_id, self.text, self.text_contains, self.description,
+                        self.description_contains, self.role, self.checked)
+
+    def matches(self, snapshot: Snapshot) -> list[Element]:
+        return self.selector.find(e for e in snapshot.elements if e.package == self.package)
 
     def satisfied(self, snapshot: Snapshot) -> bool:
-        matches = [e for e in snapshot.elements if e.package == self.package
-                   and (not self.resource_id or e.resource_id == self.resource_id)
-                   and (self.text is None or e.text == self.text)
-                   and (self.checked is None or e.checked == self.checked)]
-        return len(matches) == 1
+        count = len(self.matches(snapshot))
+        return count == 0 if self.absent else count == 1
+
+
+@dataclass(frozen=True)
+class Input:
+    """Caller-supplied text for the one editable field the target selector identifies."""
+
+    target: Selector
+    text: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.target, Selector):
+            raise ValueError("Input target must be a selector")
+        if not isinstance(self.text, str) or len(self.text) > 2000:
+            raise ValueError("Input text must be a string of at most 2000 characters")
+
+    @classmethod
+    def from_dict(cls, data: Any) -> Input:
+        if not isinstance(data, dict) or set(data) != {"target", "text"}:
+            raise ValueError("Each input is an object with target (selector) and text")
+        return cls(Selector.from_dict(data["target"]), data["text"])
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"target": self.target.to_dict(), "text": self.text}
 
 
 @dataclass(frozen=True)
@@ -137,6 +282,7 @@ class Task:
     assertions: tuple[Assertion, ...]
     text_values: dict[str, str] = field(default_factory=dict)
     allow_back: bool = False
+    inputs: tuple[Input, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.goal, str) or not self.goal.strip() or len(self.goal) > 4000:
@@ -150,16 +296,30 @@ class Task:
         if any(not isinstance(k, str) or not isinstance(v, str) or len(v) > 2000
                for k, v in self.text_values.items()):
             raise ValueError("text_values must map resource IDs to strings of at most 2000 characters")
+        if any(not isinstance(i, Input) for i in self.inputs):
+            raise ValueError("inputs must be Input objects")
+
+    def to_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {"goal": self.goal, "allowed_packages": list(self.allowed_packages),
+                                "assertions": [a.to_dict() for a in self.assertions]}
+        if self.text_values:
+            data["text_values"] = dict(self.text_values)
+        if self.inputs:
+            data["inputs"] = [i.to_dict() for i in self.inputs]
+        if self.allow_back:
+            data["allow_back"] = True
+        return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Task:
+    def from_dict(cls, data: Any) -> Task:
         if not isinstance(data, dict) or not isinstance(data.get("allowed_packages"), list) or not isinstance(data.get("assertions"), list):
             raise ValueError("Task requires allowed_packages and assertions arrays")
-        if not isinstance(data.get("text_values", {}), dict):
-            raise ValueError("text_values must be an object")
+        if not isinstance(data.get("text_values", {}), dict) or not isinstance(data.get("inputs", []), list):
+            raise ValueError("text_values must be an object and inputs a list")
         return cls(goal=data["goal"], allowed_packages=tuple(data["allowed_packages"]),
-                   assertions=tuple(Assertion(**a) for a in data["assertions"]),
-                   text_values=data.get("text_values", {}), allow_back=data.get("allow_back", False))
+                   assertions=tuple(Assertion.from_dict(a) for a in data["assertions"]),
+                   text_values=data.get("text_values", {}), allow_back=data.get("allow_back", False),
+                   inputs=tuple(Input.from_dict(i) for i in data.get("inputs", [])))
 
 
 @dataclass(frozen=True)
@@ -189,21 +349,64 @@ class Decider(Protocol):
     def decide(self, state: dict[str, Any], actions: tuple[Action, ...], timeout: float) -> Decision: ...
 
 
+def input_targets(snapshot: Snapshot, task: Task) -> tuple[dict[str, str], list[str]]:
+    """Map editable element IDs to caller text. An input matching several fields sets nothing and is reported."""
+    fields = [e for e in snapshot.elements if "set_text" in e.actions and e.enabled and not e.password
+              and e.package in task.allowed_packages]
+    targets = {e.id: task.text_values[e.resource_id] for e in fields
+               if e.resource_id and e.resource_id in task.text_values}
+    ambiguous = []
+    for item in task.inputs:
+        matches = item.target.find(fields)
+        if len(matches) == 1:
+            targets[matches[0].id] = item.text
+        elif matches:
+            ambiguous.append(f"Input {json.dumps(item.target.to_dict(), ensure_ascii=False)} matched "
+                             f"{len(matches)} fields: " + "; ".join(brief(m) for m in matches[:5]))
+    return targets, ambiguous
+
+
+def nearest(assertion: Assertion, snapshot: Snapshot, limit: int = 5) -> list[Element]:
+    """Elements a caller should look at to fix an unmet assertion: the surplus matches, or lookalikes."""
+    scoped = [e for e in snapshot.elements if e.package == assertion.package]
+    matches = assertion.selector.find(scoped)
+    if matches:
+        return matches[:limit]
+    wanted = [normalize(v) for v in (assertion.text, assertion.text_contains, assertion.description,
+                                     assertion.description_contains) if v]
+    tokens = re.findall(r"\w+", wanted[0]) if wanted else []
+    key = tokens[0] if tokens else ""
+    short_id = assertion.resource_id.rsplit("/", 1)[-1]
+
+    def score(e: Element) -> int:
+        points = 0
+        if short_id and e.resource_id.rsplit("/", 1)[-1] == short_id:
+            points += 3
+        if key and (key in normalize(e.text) or key in normalize(e.description)):
+            points += 2
+        if assertion.role and normalize(assertion.role) in (normalize(e.role), normalize(role_name(e.role))):
+            points += 1
+        return points
+
+    return sorted((e for e in scoped if score(e)), key=score, reverse=True)[:limit]
+
+
 def candidates(snapshot: Snapshot, task: Task) -> tuple[Action, ...]:
     if snapshot.truncated:
         raise KrilinError("UI tree exceeds the observation limit; narrow the task or driver scope")
-    if snapshot.active_package not in task.allowed_packages:
+    if snapshot.active_package and snapshot.active_package not in task.allowed_packages:
         raise KrilinError(f"Foreground package is outside task scope: {snapshot.active_package}")
     actions = [Action("wait", "wait"), Action("escalate", "escalate")]
     if task.allow_back:
         actions.append(Action("back", "back"))
+    targets, _ = input_targets(snapshot, task)
     for e in snapshot.elements:
         if not e.enabled or e.password or e.package not in task.allowed_packages:
             continue
         for kind in e.actions:
             text = None
             if kind == "set_text":
-                text = task.text_values.get(e.resource_id)
+                text = targets.get(e.id)
                 if text is None or text == e.text:
                     continue
             actions.append(Action(f"{kind}:{e.id}", kind, e.id, text))

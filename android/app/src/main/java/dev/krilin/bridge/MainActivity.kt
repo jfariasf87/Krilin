@@ -33,6 +33,10 @@ class MainActivity : Activity() {
             setText(R.string.open_test_screen)
             setOnClickListener { startActivity(Intent(this@MainActivity, DemoActivity::class.java)) }
         })
+        layout.addView(Button(this).apply {
+            setText(R.string.open_fixture_screen)
+            setOnClickListener { startActivity(Intent(this@MainActivity, FixtureActivity::class.java)) }
+        })
         setContentView(layout)
     }
 }

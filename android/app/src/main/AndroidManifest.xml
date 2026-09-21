@@ -10,6 +10,9 @@
             </intent-filter>
         </activity>
         <activity android:name=".DemoActivity" android:exported="true" />
+        <!-- A separate process, like a real app under test: its UI work never delays the bridge. -->
+        <activity android:name=".FixtureActivity" android:exported="true" android:process=":fixture" />
+        <activity android:name=".FixtureDetailActivity" android:exported="true" android:process=":fixture" />
         <service android:name=".BridgeService" android:exported="true"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>

@@ -1,0 +1,72 @@
+{
+  "name": "detail-toggle",
+  "allowed_packages": [
+    "dev.krilin.bridge"
+  ],
+  "launch": {
+    "package": "dev.krilin.bridge",
+    "activity": ".FixtureActivity",
+    "clear_task": true
+  },
+  "steps": [
+    {
+      "goal": "Dismiss the What's new dialog by pressing Got it, so the notes list becomes usable.",
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "text_contains": "got it",
+          "absent": true
+        },
+        {
+          "package": "dev.krilin.bridge",
+          "resource_id": "dev.krilin.bridge:id/fixture_summary",
+          "text": "30 notes, 3 done"
+        }
+      ],
+      "max_steps": 6
+    },
+    {
+      "goal": "Open Note 07 (done) from the list, so its detail screen shows the title Note 07 and the status Done.",
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "text": "Note 07",
+          "role": "TextView"
+        },
+        {
+          "package": "dev.krilin.bridge",
+          "text": "Done",
+          "role": "TextView"
+        }
+      ],
+      "max_steps": 6
+    },
+    {
+      "goal": "Press Toggle done so the status changes to Not done.",
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "text": "Not done",
+          "role": "TextView"
+        },
+        {
+          "package": "dev.krilin.bridge",
+          "text": "Done",
+          "absent": true
+        }
+      ],
+      "max_steps": 6
+    },
+    {
+      "goal": "Return to the notes list with Back to notes, so the summary shows 30 notes, 2 done.",
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "resource_id": "dev.krilin.bridge:id/fixture_summary",
+          "text": "30 notes, 2 done"
+        }
+      ],
+      "max_steps": 6
+    }
+  ]
+}
