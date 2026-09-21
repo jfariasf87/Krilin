@@ -13,12 +13,12 @@ def demo_task() -> Task:
 
 class DemoDecider:
     def decide(self, state: dict, actions: tuple[Action, ...], timeout: float) -> Decision:
-        name = next((e for e in state["ui"]["elements"] if e["resource_id"].endswith("/demo_name")), None)
-        save = next((e for e in state["ui"]["elements"] if e["resource_id"].endswith("/demo_save")), None)
+        name = next((e for e in state["ui"]["elements"] if e.get("resource_id", "").endswith("/demo_name")), None)
+        save = next((e for e in state["ui"]["elements"] if e.get("resource_id", "").endswith("/demo_save")), None)
         action_id = "escalate"
         if not name or not save:
             action_id = "wait"
-        elif name["text"] != "Krilin":
+        elif name.get("text", "") != "Krilin":
             action_id = f"set_text:{name['id']}"
         elif save:
             action_id = f"click:{save['id']}"

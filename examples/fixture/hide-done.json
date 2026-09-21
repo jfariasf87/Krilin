@@ -1,0 +1,45 @@
+{
+  "name": "hide-done",
+  "allowed_packages": [
+    "dev.krilin.bridge"
+  ],
+  "launch": {
+    "package": "dev.krilin.bridge",
+    "activity": ".FixtureActivity",
+    "clear_task": true
+  },
+  "steps": [
+    {
+      "goal": "Dismiss the What's new dialog by pressing Got it, so the notes list becomes usable.",
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "text_contains": "got it",
+          "absent": true
+        },
+        {
+          "package": "dev.krilin.bridge",
+          "resource_id": "dev.krilin.bridge:id/fixture_summary",
+          "text": "30 notes, 3 done"
+        }
+      ],
+      "max_steps": 6
+    },
+    {
+      "goal": "Turn on the Hide done checkbox so finished notes disappear from the list.",
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "resource_id": "dev.krilin.bridge:id/fixture_hide_done",
+          "checked": true
+        },
+        {
+          "package": "dev.krilin.bridge",
+          "text_contains": "(done)",
+          "absent": true
+        }
+      ],
+      "max_steps": 6
+    }
+  ]
+}

@@ -11,3 +11,5 @@ local.properties
 *.jsonl
 *.apk
 *.jks
+
+!tests/fixtures/*.jsonl

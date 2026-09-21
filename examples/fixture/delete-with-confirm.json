@@ -1,0 +1,70 @@
+{
+  "name": "delete-with-confirm",
+  "allowed_packages": [
+    "dev.krilin.bridge"
+  ],
+  "launch": {
+    "package": "dev.krilin.bridge",
+    "activity": ".FixtureActivity",
+    "clear_task": true
+  },
+  "steps": [
+    {
+      "goal": "Dismiss the What's new dialog by pressing Got it, so the notes list becomes usable.",
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "text_contains": "got it",
+          "absent": true
+        },
+        {
+          "package": "dev.krilin.bridge",
+          "resource_id": "dev.krilin.bridge:id/fixture_summary",
+          "text": "30 notes, 3 done"
+        }
+      ],
+      "max_steps": 6
+    },
+    {
+      "goal": "Open Note 04 from the list so its detail screen appears with the Delete note button.",
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "text": "Note 04",
+          "role": "TextView"
+        },
+        {
+          "package": "dev.krilin.bridge",
+          "description": "Delete note"
+        }
+      ],
+      "max_steps": 6
+    },
+    {
+      "goal": "Press Delete note so a dialog asks to confirm deleting Note 04.",
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "text_contains": "delete note 04"
+        }
+      ],
+      "max_steps": 6
+    },
+    {
+      "goal": "Confirm by pressing Delete in the dialog, so the list returns showing 29 notes, 3 done.",
+      "assertions": [
+        {
+          "package": "dev.krilin.bridge",
+          "resource_id": "dev.krilin.bridge:id/fixture_summary",
+          "text": "29 notes, 3 done"
+        },
+        {
+          "package": "dev.krilin.bridge",
+          "text": "Note 04",
+          "absent": true
+        }
+      ],
+      "max_steps": 6
+    }
+  ]
+}

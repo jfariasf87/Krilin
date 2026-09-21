@@ -46,6 +46,13 @@ class BridgeTests(unittest.TestCase):
         with self.assertRaises(KrilinError):
             self.roundtrip({"error": "unauthorized"}, lambda d: d.observe())
 
+    def test_observe_timeout_is_named_and_act_timeout_stays_unknown(self):
+        with self.assertRaisesRegex(KrilinError, "Observation timed out"):
+            self.roundtrip({"error": "timeout_outcome_unknown"}, lambda d: d.observe())
+        with self.assertRaisesRegex(KrilinError, "timeout_outcome_unknown"):
+            self.roundtrip({"error": "timeout_outcome_unknown"},
+                           lambda d: d.execute(DemoDriver().observe(1), Action("click:e2", "click", "e2")))
+
     def test_invalid_snapshot_rejected(self):
         with self.assertRaises(KrilinError):
             Snapshot.from_dict({"protocol": 999})

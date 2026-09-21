@@ -69,6 +69,26 @@ def setup(serial: str, apk: Path, config: Path) -> None:
         config.chmod(0o600)
 
 
+def configured_serial(config: Path) -> str:
+    try:
+        return str(json.loads(config.read_text(encoding="utf-8"))["serial"])
+    except (OSError, KeyError, TypeError, ValueError) as exc:
+        raise KrilinError("Missing or invalid bridge configuration; run krilin setup") from exc
+
+
+def launch(serial: str, package: str, activity: str | None = None, clear_task: bool = True) -> None:
+    """Start an app as a stated precondition. clear_task resets the activity's task and needs an activity."""
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_.]*", package) or (activity and not re.fullmatch(r"[A-Za-z0-9_.$]+", activity)):
+        raise KrilinError("Invalid package or activity name")
+    if activity:
+        flags = ("-f", "0x10008000") if clear_task else ()
+        output = adb(serial, "shell", "am", "start", "-W", *flags, "-n", f"{package}/{activity}")
+    else:
+        output = adb(serial, "shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1")
+    if "Error" in output or "No activities found" in output:
+        raise KrilinError(f"Launch of {package} failed; check the package and activity names")
+
+
 def load_driver(config: Path) -> BridgeDriver:
     try:
         settings = json.loads(config.read_text(encoding="utf-8"))

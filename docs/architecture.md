@@ -35,7 +35,7 @@ The optional JSONL journal records goals/assertions, decisions, input modes, out
 
 ## Why a persistent companion
 
-A fresh `adb shell uiautomator dump` process for every action adds overhead and may perturb accessibility services through instrumentation. The companion stays connected, receives events, and executes node actions directly. Observation waits for an 80 ms event quiet period, capped at 400 ms, instead of assuming a multi-second sleep is necessary. Animated UIs can remain unstable; the driver rejects stale decisions and the host limits retries.
+A fresh `adb shell uiautomator dump` process for every action adds overhead and may perturb accessibility services through instrumentation. The companion stays connected, receives events, and executes node actions directly. After an accepted action, observation first waits for the first accessibility event that action causes (capped at 500 ms), then for a 150 ms event quiet period (Android batches content-change events every 100 ms), capped at 500 ms, instead of assuming a multi-second sleep is necessary. Animated UIs can remain unstable; the driver rejects stale decisions and the host limits retries.
 
 The companion does not request gesture interception or touch exploration. Semantic actions are useful when testing functional outcomes with TalkBack running. They bypass physical gesture semantics, so they cannot certify the TalkBack user journey. A future explicit gesture driver should model focus/select/activate, multi-finger scrolling, spoken feedback, and restoration of temporarily changed settings. It should never silently fall back from gesture testing to semantic execution.
 

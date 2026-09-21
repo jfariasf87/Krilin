@@ -1,0 +1,23 @@
+{
+  "name": "dismiss-and-sync",
+  "allowed_packages": ["dev.krilin.bridge"],
+  "launch": {"package": "dev.krilin.bridge", "activity": ".FixtureActivity", "clear_task": true},
+  "steps": [
+    {
+      "goal": "Dismiss the What's new dialog by pressing Got it, so the notes list becomes usable.",
+      "assertions": [
+        {"package": "dev.krilin.bridge", "text_contains": "got it", "absent": true},
+        {"package": "dev.krilin.bridge", "resource_id": "dev.krilin.bridge:id/fixture_summary", "text": "30 notes, 3 done"}
+      ],
+      "max_steps": 5
+    },
+    {
+      "goal": "Press Sync, then wait for the sync to finish so the status line reports how many notes were synced.",
+      "assertions": [
+        {"package": "dev.krilin.bridge", "resource_id": "dev.krilin.bridge:id/fixture_sync_status", "text": "Synced 30 notes"},
+        {"package": "dev.krilin.bridge", "description": "Syncing", "absent": true}
+      ],
+      "max_steps": 10
+    }
+  ]
+}
